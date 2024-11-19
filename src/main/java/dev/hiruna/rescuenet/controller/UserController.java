@@ -1,5 +1,6 @@
 package dev.hiruna.rescuenet.controller;
 
+import dev.hiruna.rescuenet.dto.ForgotPasswordDTO;
 import dev.hiruna.rescuenet.dto.UserDTO;
 import dev.hiruna.rescuenet.dto.ResponseDTO;
 import dev.hiruna.rescuenet.dto.ErrorDTO;
@@ -57,8 +58,8 @@ public class UserController {
 
     // **Forgot Password**
     @PostMapping("/forgot-password")
-    public ResponseEntity<ResponseDTO<String>> forgotPassword(@RequestParam String email) {
-        String response = userService.sendResetCode(email);
+    public ResponseEntity<ResponseDTO<String>> forgotPassword(@RequestBody ForgotPasswordDTO forgotPasswordDTO) {
+        String response = userService.sendResetCode(forgotPasswordDTO.getEmail());
         if (response.startsWith("Reset code sent")) {
             return ResponseEntity.ok(ResponseDTO.success("Reset code sent successfully", response));
         }
@@ -113,8 +114,7 @@ public class UserController {
             }
         }
         ErrorDTO error = new ErrorDTO(HttpStatus.NOT_FOUND.value(), "User not found.");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ResponseDTO.error("User retrieval failed", error.getCode(), error.getDescription()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResponseDTO.error("User retrieval failed", error.getCode(), error.getDescription()));
     }
 
     // **Update User**
