@@ -1,7 +1,10 @@
 package dev.hiruna.rescuenet.controller;
 
-import dev.hiruna.rescuenet.dto.UserDTO;
+import dev.hiruna.rescuenet.dto.AuthDTO;
+import dev.hiruna.rescuenet.dto.LoginDTO;
 import dev.hiruna.rescuenet.service.UserService;
+import dev.hiruna.rescuenet.exception.UserAlreadyExistsException;
+import dev.hiruna.rescuenet.exception.AuthenticationFailedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,23 +19,27 @@ public class AuthController {
 
     // **Register User**
     @PostMapping("/register")
-    public ResponseEntity<UserDTO> registerUser(@RequestBody UserDTO userDTO) {
+    public ResponseEntity<AuthDTO> registerUser(@RequestBody AuthDTO authDTO) {
         try {
-            UserDTO registeredUser = userService.register(userDTO);
+            AuthDTO registeredUser = (AuthDTO) userService.register(authDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
-        } catch (IllegalArgumentException e) {
+        } catch (UserAlreadyExistsException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     // **Login User**
     @PostMapping("/login")
-    public ResponseEntity<String> loginUser(@RequestParam String email, @RequestParam String password) {
+    public ResponseEntity<String> loginUser(@RequestBody LoginDTO loginDTO) {
         try {
-            String jwtToken = userService.login(email, password);
-            return ResponseEntity.ok(jwtToken); // Return JWT token
-        } catch (IllegalArgumentException e) {
+            String jwtToken = userService.login(loginDTO.getEmail(), loginDTO.getPassword());
+            return ResponseEntity.ok(jwtToken);
+        } catch (AuthenticationFailedException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
         }
     }
 }
