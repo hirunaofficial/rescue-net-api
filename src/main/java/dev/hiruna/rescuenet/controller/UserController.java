@@ -41,21 +41,10 @@ public class UserController {
         }
 
         try {
-            UserDTO registeredUser = userService.register(userDTO);
+            UserDTO registeredUser = (UserDTO) userService.register(userDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
-        }
-    }
-
-    // **Login User**
-    @PostMapping("/login")
-    public ResponseEntity<String> loginUser(@RequestParam String email, @RequestParam String password) {
-        try {
-            String jwtToken = userService.login(email, password);
-            return ResponseEntity.ok(jwtToken); // Return JWT token
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
 
