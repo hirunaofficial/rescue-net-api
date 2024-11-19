@@ -26,7 +26,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(255) DEFAULT 'User'")
     private String role;
 
     @Column(nullable = false)
@@ -34,6 +34,9 @@ public class User {
 
     @Column(nullable = false)
     private String lastName;
+
+    @Column(nullable = true)
+    private String resetCode;
 
     public User(String email, String password, String phoneNumber, String role, String firstName, String lastName) {
         this.email = email;
