@@ -1,6 +1,8 @@
 package dev.hiruna.rescuenet.controller;
 
 import dev.hiruna.rescuenet.dto.UserDTO;
+import dev.hiruna.rescuenet.dto.ResponseDTO;
+import dev.hiruna.rescuenet.dto.ErrorDTO;
 import dev.hiruna.rescuenet.service.UserService;
 import dev.hiruna.rescuenet.utill.JWTAuthenticator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,90 +37,109 @@ public class UserController {
 
     // **Register User (Admin Only)**
     @PostMapping("/register")
-    public ResponseEntity<UserDTO> registerUser(@RequestHeader("Authorization") String authHeader, @RequestBody UserDTO userDTO) {
+    public ResponseEntity<ResponseDTO<UserDTO>> registerUser(@RequestHeader("Authorization") String authHeader, @RequestBody UserDTO userDTO) {
         if (!isAdmin(authHeader)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+            ErrorDTO error = new ErrorDTO(HttpStatus.FORBIDDEN.value(), "Access denied. Admin privileges required.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ResponseDTO.error("User registration failed", error.getCode(), error.getDescription()));
         }
 
         try {
-            UserDTO registeredUser = (UserDTO) userService.register(userDTO);
-            return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
+            UserDTO registeredUser = (UserDTO) userService.register(userDTO); // Ensure userService.register() returns UserDTO
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ResponseDTO.success("User registered successfully", registeredUser));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+            ErrorDTO error = new ErrorDTO(HttpStatus.CONFLICT.value(), "User already exists.");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseDTO.error("Registration failed", error.getCode(), error.getDescription()));
         }
     }
 
     // **Forgot Password**
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestParam String email) {
+    public ResponseEntity<ResponseDTO<String>> forgotPassword(@RequestParam String email) {
         String response = userService.sendResetCode(email);
         if (response.startsWith("Reset code sent")) {
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(ResponseDTO.success("Reset code sent successfully", response));
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        ErrorDTO error = new ErrorDTO(HttpStatus.NOT_FOUND.value(), "Email not found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ResponseDTO.error("Password reset failed", error.getCode(), error.getDescription()));
     }
 
     // **Verify Reset Code**
     @PostMapping("/verify-reset-code")
-    public ResponseEntity<String> verifyResetCode(@RequestParam String email, @RequestParam String resetCode, @RequestParam String newPassword) {
+    public ResponseEntity<ResponseDTO<String>> verifyResetCode(@RequestParam String email, @RequestParam String resetCode, @RequestParam String newPassword) {
         boolean isVerified = userService.verifyResetCode(email, resetCode, newPassword);
         if (isVerified) {
-            return ResponseEntity.ok("Password reset successfully.");
+            return ResponseEntity.ok(ResponseDTO.success("Password reset successfully", "Password has been updated."));
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid reset code.");
+        ErrorDTO error = new ErrorDTO(HttpStatus.BAD_REQUEST.value(), "Invalid reset code.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ResponseDTO.error("Password reset failed", error.getCode(), error.getDescription()));
     }
 
     // **Verify JWT**
     @PostMapping("/verify")
-    public ResponseEntity<Map<String, Object>> verifyJwt(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<ResponseDTO<Map<String, Object>>> verifyJwt(@RequestHeader("Authorization") String authHeader) {
         if (jwtAuthenticator.validateJwtToken(authHeader)) {
             Map<String, Object> payload = jwtAuthenticator.getJwtPayload(authHeader);
-            return ResponseEntity.ok(payload); // Return the JWT claims (payload)
+            return ResponseEntity.ok(ResponseDTO.success("JWT verified successfully", payload));
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Invalid or expired JWT.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseDTO.error("JWT verification failed", error.getCode(), error.getDescription()));
     }
 
     // **Get All Users (Admin Only)**
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<ResponseDTO<List<UserDTO>>> getAllUsers(@RequestHeader("Authorization") String authHeader) {
         if (isAdmin(authHeader)) {
             List<UserDTO> users = userService.getAllUsers();
-            return ResponseEntity.ok(users);
+            return ResponseEntity.ok(ResponseDTO.success("Users fetched successfully", users));
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseDTO.error("Fetching users failed", error.getCode(), error.getDescription()));
     }
 
     // **Get User by ID**
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getUserById(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
+    public ResponseEntity<ResponseDTO<UserDTO>> getUserById(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
         if (jwtAuthenticator.validateJwtToken(authHeader)) {
             UserDTO user = userService.getUserById(id);
             if (user != null) {
-                return ResponseEntity.ok(user);
+                return ResponseEntity.ok(ResponseDTO.success("User fetched successfully", user));
             }
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        ErrorDTO error = new ErrorDTO(HttpStatus.NOT_FOUND.value(), "User not found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ResponseDTO.error("User retrieval failed", error.getCode(), error.getDescription()));
     }
 
     // **Update User**
     @PutMapping("/{id}")
-    public ResponseEntity<UserDTO> updateUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id, @RequestBody UserDTO userDTO) {
+    public ResponseEntity<ResponseDTO<UserDTO>> updateUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id, @RequestBody UserDTO userDTO) {
         if (jwtAuthenticator.validateJwtToken(authHeader)) {
             UserDTO updatedUser = userService.updateUser(id, userDTO);
             if (updatedUser != null) {
-                return ResponseEntity.ok(updatedUser);
+                return ResponseEntity.ok(ResponseDTO.success("User updated successfully", updatedUser));
             }
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        ErrorDTO error = new ErrorDTO(HttpStatus.NOT_FOUND.value(), "User not found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ResponseDTO.error("User update failed", error.getCode(), error.getDescription()));
     }
 
     // **Delete User (Admin Only)**
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
+    public ResponseEntity<ResponseDTO<Void>> deleteUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
         if (isAdmin(authHeader)) {
             userService.deleteUser(id);
             return ResponseEntity.noContent().build();
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseDTO.error("User deletion failed", error.getCode(), error.getDescription()));
     }
 }
