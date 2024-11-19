@@ -1,9 +1,6 @@
 package dev.hiruna.rescuenet.controller;
 
-import dev.hiruna.rescuenet.dto.ForgotPasswordDTO;
-import dev.hiruna.rescuenet.dto.UserDTO;
-import dev.hiruna.rescuenet.dto.ResponseDTO;
-import dev.hiruna.rescuenet.dto.ErrorDTO;
+import dev.hiruna.rescuenet.dto.*;
 import dev.hiruna.rescuenet.service.UserService;
 import dev.hiruna.rescuenet.utill.JWTAuthenticator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,8 +67,12 @@ public class UserController {
 
     // **Verify Reset Code**
     @PostMapping("/verify-reset-code")
-    public ResponseEntity<ResponseDTO<String>> verifyResetCode(@RequestParam String email, @RequestParam String resetCode, @RequestParam String newPassword) {
-        boolean isVerified = userService.verifyResetCode(email, resetCode, newPassword);
+    public ResponseEntity<ResponseDTO<String>> verifyResetCode(@RequestBody VerifyResetCodeDTO verifyResetCodeDTO) {
+        boolean isVerified = userService.verifyResetCode(
+                verifyResetCodeDTO.getEmail(),
+                verifyResetCodeDTO.getResetCode(),
+                verifyResetCodeDTO.getNewPassword()
+        );
         if (isVerified) {
             return ResponseEntity.ok(ResponseDTO.success("Password reset successfully", "Password has been updated."));
         }
@@ -79,6 +80,7 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ResponseDTO.error("Password reset failed", error.getCode(), error.getDescription()));
     }
+
 
     // **Verify JWT**
     @PostMapping("/verify")
