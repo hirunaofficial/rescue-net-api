@@ -1,5 +1,6 @@
 package dev.hiruna.rescuenet.service;
 
+import dev.hiruna.rescuenet.dto.AuthDTO;
 import dev.hiruna.rescuenet.dto.UserDTO;
 import dev.hiruna.rescuenet.entity.User;
 import dev.hiruna.rescuenet.exception.AuthenticationFailedException;
@@ -30,22 +31,32 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final Random random = new Random();
 
-    // **Register User**
-    public UserDTO register(UserDTO userDTO) {
-        // Check if the email already exists
-        if (userRepository.findByEmail(userDTO.getEmail()) != null) {
-            throw new UserAlreadyExistsException("Email is already registered.");
+    // Generic register method to support both UserDTO and AuthDTO
+    public Object register(Object dto) {
+        if (dto instanceof UserDTO) {
+            UserDTO userDTO = (UserDTO) dto;
+            if (userRepository.findByEmail(userDTO.getEmail()) != null) {
+                throw new UserAlreadyExistsException("Email is already registered.");
+            }
+
+            User user = convertToEntity(userDTO);
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword())); // Hash password
+            user = userRepository.save(user);
+            sendWelcomeEmail(user.getEmail(), user.getFirstName());
+            return convertToDTOWithoutPassword(user);
+        } else if (dto instanceof AuthDTO) {
+            AuthDTO authDTO = (AuthDTO) dto;
+            if (userRepository.findByEmail(authDTO.getEmail()) != null) {
+                throw new UserAlreadyExistsException("Email is already registered.");
+            }
+
+            User user = convertToEntity(authDTO);
+            user.setPassword(passwordEncoder.encode(authDTO.getPassword())); // Hash password
+            user = userRepository.save(user);
+            sendWelcomeEmail(user.getEmail(), user.getFirstName());
+            return convertToAuthDTO(user);
         }
-
-        // Create user entity
-        User user = convertToEntity(userDTO);
-        user.setPassword(passwordEncoder.encode(userDTO.getPassword())); // Hash password
-        user = userRepository.save(user);
-
-        // Send welcome email
-        sendWelcomeEmail(user.getEmail(), user.getFirstName());
-
-        return convertToDTOWithoutPassword(user);
+        throw new IllegalArgumentException("Invalid DTO type");
     }
 
     // **Login User**
@@ -144,7 +155,7 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    // **Convert User Entity to DTO (without password)**
+    // **Convert User Entity to UserDTO (without password)**
     private UserDTO convertToDTOWithoutPassword(User user) {
         return new UserDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getRole(), user.getFirstName(), user.getLastName());
     }
@@ -152,5 +163,15 @@ public class UserService {
     // **Convert UserDTO to User Entity**
     private User convertToEntity(UserDTO userDTO) {
         return new User(userDTO.getEmail(), userDTO.getPassword(), userDTO.getPhoneNumber(), userDTO.getRole(), userDTO.getFirstName(), userDTO.getLastName());
+    }
+
+    // **Convert AuthDTO to User Entity**
+    private User convertToEntity(AuthDTO authDTO) {
+        return new User(authDTO.getEmail(), authDTO.getPassword(), authDTO.getPhoneNumber(), "User", authDTO.getFirstName(), authDTO.getLastName()); // Default role as USER
+    }
+
+    // **Convert User Entity to AuthDTO**
+    private AuthDTO convertToAuthDTO(User user) {
+        return new AuthDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getFirstName(), user.getLastName());
     }
 }
