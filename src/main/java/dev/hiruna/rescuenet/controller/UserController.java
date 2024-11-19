@@ -1,6 +1,7 @@
 package dev.hiruna.rescuenet.controller;
 
 import dev.hiruna.rescuenet.dto.*;
+import dev.hiruna.rescuenet.exception.UserAlreadyExistsException;
 import dev.hiruna.rescuenet.service.UserService;
 import dev.hiruna.rescuenet.utill.JWTAuthenticator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,9 +47,17 @@ public class UserController {
             UserDTO registeredUser = (UserDTO) userService.register(userDTO); // Ensure userService.register() returns UserDTO
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseDTO.success("User registered successfully", registeredUser));
-        } catch (IllegalArgumentException e) {
-            ErrorDTO error = new ErrorDTO(HttpStatus.CONFLICT.value(), "User already exists.");
+        } catch (UserAlreadyExistsException e) {
+            ErrorDTO error = new ErrorDTO(HttpStatus.CONFLICT.value(), "User with this email already exists.");
             return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseDTO.error("Registration failed", error.getCode(), error.getDescription()));
+        } catch (IllegalArgumentException e) {
+            ErrorDTO error = new ErrorDTO(HttpStatus.CONFLICT.value(), "Invalid input.");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ResponseDTO.error("Registration failed", error.getCode(), error.getDescription()));
+        } catch (Exception e) {
+            ErrorDTO error = new ErrorDTO(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An unexpected error occurred.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ResponseDTO.error("Registration failed", error.getCode(), error.getDescription()));
         }
     }
@@ -94,18 +103,6 @@ public class UserController {
                 .body(ResponseDTO.error("JWT verification failed", error.getCode(), error.getDescription()));
     }
 
-    // **Get All Users (Admin Only)**
-    @GetMapping
-    public ResponseEntity<ResponseDTO<List<UserDTO>>> getAllUsers(@RequestHeader("Authorization") String authHeader) {
-        if (isAdmin(authHeader)) {
-            List<UserDTO> users = userService.getAllUsers();
-            return ResponseEntity.ok(ResponseDTO.success("Users fetched successfully", users));
-        }
-        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ResponseDTO.error("Fetching users failed", error.getCode(), error.getDescription()));
-    }
-
     // **Get User by ID**
     @GetMapping("/{id}")
     public ResponseEntity<ResponseDTO<UserDTO>> getUserById(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
@@ -119,14 +116,30 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ResponseDTO.error("User retrieval failed", error.getCode(), error.getDescription()));
     }
 
-    // **Update User**
+    // **Get All Users (Admin Only)**
+    @GetMapping
+    public ResponseEntity<ResponseDTO<List<UserDTO>>> getAllUsers(@RequestHeader("Authorization") String authHeader) {
+        if (isAdmin(authHeader)) {
+            List<UserDTO> users = userService.getAllUsers();
+            return ResponseEntity.ok(ResponseDTO.success("Users fetched successfully", users));
+        }
+        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseDTO.error("Fetching users failed", error.getCode(), error.getDescription()));
+    }
+
+    // **Update User (Admin Only)**
     @PutMapping("/{id}")
     public ResponseEntity<ResponseDTO<UserDTO>> updateUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id, @RequestBody UserDTO userDTO) {
-        if (jwtAuthenticator.validateJwtToken(authHeader)) {
-            UserDTO updatedUser = userService.updateUser(id, userDTO);
-            if (updatedUser != null) {
-                return ResponseEntity.ok(ResponseDTO.success("User updated successfully", updatedUser));
-            }
+        if (!isAdmin(authHeader)) {  // Check if the user is an Admin
+            ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error("User update failed", error.getCode(), error.getDescription()));
+        }
+
+        UserDTO updatedUser = userService.updateUser(id, userDTO);
+        if (updatedUser != null) {
+            return ResponseEntity.ok(ResponseDTO.success("User updated successfully", updatedUser));
         }
         ErrorDTO error = new ErrorDTO(HttpStatus.NOT_FOUND.value(), "User not found.");
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -136,12 +149,14 @@ public class UserController {
     // **Delete User (Admin Only)**
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseDTO<Void>> deleteUser(@RequestHeader("Authorization") String authHeader, @PathVariable Integer id) {
-        if (isAdmin(authHeader)) {
-            userService.deleteUser(id);
-            return ResponseEntity.noContent().build();
+        if (!isAdmin(authHeader)) {  // Check if the user is an Admin
+            ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error("User deletion failed", error.getCode(), error.getDescription()));
         }
-        ErrorDTO error = new ErrorDTO(HttpStatus.UNAUTHORIZED.value(), "Access denied. Admin privileges required.");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ResponseDTO.error("User deletion failed", error.getCode(), error.getDescription()));
+
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
+
 }
