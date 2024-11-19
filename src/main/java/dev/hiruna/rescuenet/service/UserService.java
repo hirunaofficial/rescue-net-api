@@ -2,6 +2,8 @@ package dev.hiruna.rescuenet.service;
 
 import dev.hiruna.rescuenet.dto.UserDTO;
 import dev.hiruna.rescuenet.entity.User;
+import dev.hiruna.rescuenet.exception.AuthenticationFailedException;
+import dev.hiruna.rescuenet.exception.UserAlreadyExistsException;
 import dev.hiruna.rescuenet.repository.UserRepository;
 import dev.hiruna.rescuenet.utill.EmailSender;
 import dev.hiruna.rescuenet.utill.JWTAuthenticator;
@@ -32,7 +34,7 @@ public class UserService {
     public UserDTO register(UserDTO userDTO) {
         // Check if the email already exists
         if (userRepository.findByEmail(userDTO.getEmail()) != null) {
-            throw new IllegalArgumentException("Email is already registered.");
+            throw new UserAlreadyExistsException("Email is already registered.");
         }
 
         // Create user entity
@@ -51,13 +53,14 @@ public class UserService {
         // Find user by email
         User user = userRepository.findByEmail(email);
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
-            throw new IllegalArgumentException("Invalid email or password.");
+            throw new AuthenticationFailedException("Invalid email or password.");
         }
 
         // Generate JWT token
         return jwtAuthenticator.generateJwtToken(user);
     }
 
+    // **Send Welcome Email**
     public void sendWelcomeEmail(String email, String firstName) {
         String subject = "Welcome to RescueNet!";
         String body = "<h1>Welcome, " + firstName + "!</h1>"
@@ -67,11 +70,12 @@ public class UserService {
         emailSender.sendEmail(email, subject, body);
     }
 
+    // **Send Password Reset Code**
     public String sendResetCode(String email) {
         User user = userRepository.findByEmail(email);
         if (user != null) {
             String resetCode = String.format("%06d", random.nextInt(999999)); // Generate a 6-digit reset code
-            user.setPassword(resetCode); // Temporarily store reset code as the password
+            user.setResetCode(resetCode); // Store reset code temporarily
             userRepository.save(user);
 
             // Send reset code email
@@ -86,16 +90,17 @@ public class UserService {
         return "Email not found.";
     }
 
+    // **Verify Reset Code**
     public boolean verifyResetCode(String email, String resetCode, String newPassword) {
         User user = userRepository.findByEmail(email);
-        if (user != null && user.getPassword().equals(resetCode)) {
+        if (user != null && user.getResetCode().equals(resetCode)) {
             user.setPassword(passwordEncoder.encode(newPassword)); // Update password with hashed version
+            user.setResetCode(null); // Clear the reset code after use
             userRepository.save(user);
 
             // Send confirmation email
             String subject = "Password Reset Successful";
             String body = "<p>Your password has been successfully reset. You can now log in with your new password.</p>";
-
             emailSender.sendEmail(email, subject, body);
 
             return true;
@@ -103,6 +108,7 @@ public class UserService {
         return false;
     }
 
+    // **Update User**
     public UserDTO updateUser(Integer id, UserDTO userDTO) {
         User user = userRepository.findById(id).orElse(null);
         if (user != null) {
@@ -120,25 +126,30 @@ public class UserService {
         return null;
     }
 
+    // **Get All Users**
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::convertToDTOWithoutPassword)
                 .collect(Collectors.toList());
     }
 
+    // **Get User by ID**
     public UserDTO getUserById(Integer id) {
         User user = userRepository.findById(id).orElse(null);
         return user != null ? convertToDTOWithoutPassword(user) : null;
     }
 
+    // **Delete User**
     public void deleteUser(Integer id) {
         userRepository.deleteById(id);
     }
 
+    // **Convert User Entity to DTO (without password)**
     private UserDTO convertToDTOWithoutPassword(User user) {
         return new UserDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getRole(), user.getFirstName(), user.getLastName());
     }
 
+    // **Convert UserDTO to User Entity**
     private User convertToEntity(UserDTO userDTO) {
         return new User(userDTO.getEmail(), userDTO.getPassword(), userDTO.getPhoneNumber(), userDTO.getRole(), userDTO.getFirstName(), userDTO.getLastName());
     }
