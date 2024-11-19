@@ -25,7 +25,7 @@ public class UserController {
     private boolean isAdmin(String authHeader) {
         if (jwtAuthenticator.validateJwtToken(authHeader)) {
             Map<String, Object> payload = jwtAuthenticator.getJwtPayload(authHeader);
-            if (payload != null) {
+            if (payload != null && payload.containsKey("role")) {
                 String role = (String) payload.get("role");
                 return "Admin".equalsIgnoreCase(role);
             }
@@ -33,9 +33,13 @@ public class UserController {
         return false;
     }
 
-    // **Register User**
+    // **Register User (Admin Only)**
     @PostMapping("/register")
-    public ResponseEntity<UserDTO> registerUser(@RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> registerUser(@RequestHeader("Authorization") String authHeader, @RequestBody UserDTO userDTO) {
+        if (!isAdmin(authHeader)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
+
         try {
             UserDTO registeredUser = userService.register(userDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(registeredUser);
