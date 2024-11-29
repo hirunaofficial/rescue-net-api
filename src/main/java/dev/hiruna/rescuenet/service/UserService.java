@@ -131,6 +131,7 @@ public class UserService {
             user.setRole(userDTO.getRole());
             user.setFirstName(userDTO.getFirstName());
             user.setLastName(userDTO.getLastName());
+            user.setProfileImageUrl(userDTO.getProfileImageUrl());
             user = userRepository.save(user);
             return convertToDTOWithoutPassword(user);
         }
@@ -157,21 +158,21 @@ public class UserService {
 
     // **Convert User Entity to UserDTO (without password)**
     private UserDTO convertToDTOWithoutPassword(User user) {
-        return new UserDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getRole(), user.getFirstName(), user.getLastName());
+        return new UserDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getRole(), user.getFirstName(), user.getLastName(), user.getProfileImageUrl());
     }
 
     // **Convert UserDTO to User Entity**
     private User convertToEntity(UserDTO userDTO) {
-        return new User(userDTO.getEmail(), userDTO.getPassword(), userDTO.getPhoneNumber(), userDTO.getRole(), userDTO.getFirstName(), userDTO.getLastName());
+        return new User(userDTO.getEmail(), userDTO.getPassword(), userDTO.getPhoneNumber(), userDTO.getRole(), userDTO.getFirstName(), userDTO.getLastName(), userDTO.getProfileImageUrl());
     }
 
     // **Convert AuthDTO to User Entity**
     private User convertToEntity(AuthDTO authDTO) {
-        return new User(authDTO.getEmail(), authDTO.getPassword(), authDTO.getPhoneNumber(), "User", authDTO.getFirstName(), authDTO.getLastName()); // Default role as USER
+        return new User(authDTO.getEmail(), authDTO.getPassword(), authDTO.getPhoneNumber(), "User", authDTO.getFirstName(), authDTO.getLastName(), authDTO.getProfileImageUrl()); // Default role as USER
     }
 
     // **Convert User Entity to AuthDTO**
     private AuthDTO convertToAuthDTO(User user) {
-        return new AuthDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getFirstName(), user.getLastName());
+        return new AuthDTO(user.getId(), user.getEmail(), user.getPhoneNumber(), null, user.getFirstName(), user.getLastName(), user.getProfileImageUrl());
     }
 }

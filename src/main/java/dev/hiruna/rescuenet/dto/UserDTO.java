@@ -16,6 +16,7 @@ public class UserDTO {
     private String role;
     private String firstName;
     private String lastName;
+    private String profileImageUrl;
 
     public String getFullName() {
         return firstName + " " + lastName;
