@@ -15,6 +15,7 @@ public class AuthDTO {
     private String password;
     private String firstName;
     private String lastName;
+    private String profileImageUrl;
 
     public String getFullName() {
         return firstName + " " + lastName;
