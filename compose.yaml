@@ -17,6 +17,6 @@ services:
       - PMA_HOST=mysql
       - PMA_PORT=3306
     ports:
-      - '80:80'
+      - '9090:80'
     depends_on:
       - mysql
